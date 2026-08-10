@@ -335,7 +335,7 @@ public class PlaybackService extends Service {
 
         savePosition();
 
-        playSingleSentence();
+        play();
     }
 
     private void previousSentence() {
@@ -354,7 +354,7 @@ public class PlaybackService extends Service {
 
         savePosition();
 
-        playSingleSentence();
+        play();
     }
 
     private void playSingleSentence() {

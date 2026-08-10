@@ -424,6 +424,10 @@ public class MainActivity extends Activity {
         serviceIntent.setAction(
                 PlaybackService.ACTION_START
         );
+        serviceIntent.putExtra(
+                PlaybackService.EXTRA_SENTENCE,
+                index
+        );
 
         if (android.os.Build.VERSION.SDK_INT >= 26) {
 

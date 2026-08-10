@@ -1,0 +1,35 @@
+name: Build PDF Voice
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Scarica il progetto
+        uses: actions/checkout@v4
+
+      - name: Configura Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Configura Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Installa Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Compila APK
+        run: ./gradlew assembleDebug
+
+      - name: Salva APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: PDF-Voice-debug
+          path: app/build/outputs/apk/debug/app-debug.apk

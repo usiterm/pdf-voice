@@ -21,5 +21,5 @@ android {
 }
 
 dependencies {
-    implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+    implementation("androidx.annotation:annotation:1.9.1")
 }

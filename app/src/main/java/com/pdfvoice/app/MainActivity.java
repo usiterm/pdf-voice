@@ -2,6 +2,7 @@ package com.pdfvoice.app;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
@@ -37,6 +38,7 @@ public class MainActivity extends Activity {
             new android.content.BroadcastReceiver() {
         @Override
         public void onReceive(android.content.Context context, Intent intent) {
+
             if ("com.pdfvoice.SENTENCE_CHANGED".equals(intent.getAction())) {
 
                 int index = intent.getIntExtra(
@@ -60,28 +62,50 @@ public class MainActivity extends Activity {
 
         buildInterface();
 
-// Ripristina automaticamente l'ultimo PDF aperto
-SharedPreferences prefs = getSharedPreferences("pdf_voice", MODE_PRIVATE);
-String savedUri = prefs.getString("current_pdf_uri", null);
+        // Ripristina automaticamente l'ultimo PDF aperto
+        SharedPreferences prefs =
+                getSharedPreferences(
+                        "pdf_voice",
+                        MODE_PRIVATE
+                );
 
-if (savedUri != null) {
-    try {
-        Uri uri = Uri.parse(savedUri);
-        loadPdf(uri, true);
-    } catch (Exception e) {
-        e.printStackTrace();
-    }
-}
+        String savedUri =
+                prefs.getString(
+                        "current_pdf_uri",
+                        null
+                );
 
-registerReceiver(receiver, new IntentFilter("com.pdfvoice.SENTENCE_CHANGED"));
+        if (savedUri != null) {
+            try {
+
+                Uri uri = Uri.parse(savedUri);
+
+                loadPdf(uri, true);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        android.content.IntentFilter filter =
+                new android.content.IntentFilter(
+                        "com.pdfvoice.SENTENCE_CHANGED"
+                );
+
         if (android.os.Build.VERSION.SDK_INT >= 33) {
+
             registerReceiver(
                     sentenceReceiver,
                     filter,
                     android.content.Context.RECEIVER_NOT_EXPORTED
             );
+
         } else {
-            registerReceiver(sentenceReceiver, filter);
+
+            registerReceiver(
+                    sentenceReceiver,
+                    filter
+            );
         }
     }
 
@@ -118,26 +142,32 @@ registerReceiver(receiver, new IntentFilter("com.pdfvoice.SENTENCE_CHANGED"));
         playPauseButton.setOnClickListener(v -> playPause());
         nextButton.setOnClickListener(v -> nextSentence());
 
-        controls.addView(previousButton,
+        controls.addView(
+                previousButton,
                 new LinearLayout.LayoutParams(
                         0,
                         LinearLayout.LayoutParams.WRAP_CONTENT,
                         1
-                ));
+                )
+        );
 
-        controls.addView(playPauseButton,
+        controls.addView(
+                playPauseButton,
                 new LinearLayout.LayoutParams(
                         0,
                         LinearLayout.LayoutParams.WRAP_CONTENT,
                         1
-                ));
+                )
+        );
 
-        controls.addView(nextButton,
+        controls.addView(
+                nextButton,
                 new LinearLayout.LayoutParams(
                         0,
                         LinearLayout.LayoutParams.WRAP_CONTENT,
                         1
-                ));
+                )
+        );
 
         scrollView = new ScrollView(this);
 
@@ -146,19 +176,24 @@ registerReceiver(receiver, new IntentFilter("com.pdfvoice.SENTENCE_CHANGED"));
         textContainer.setPadding(4, 10, 4, 40);
 
         TextView welcome = new TextView(this);
+
         welcome.setText(
                 "Apri un PDF per iniziare.\n\n" +
                 "Puoi toccare una frase per iniziare " +
                 "la lettura da quel punto."
         );
+
         welcome.setTextSize(18);
         welcome.setPadding(10, 10, 10, 10);
 
         textContainer.addView(welcome);
+
         scrollView.addView(textContainer);
 
         root.addView(title);
+
         root.addView(openButton);
+
         root.addView(
                 controls,
                 new LinearLayout.LayoutParams(
@@ -216,19 +251,39 @@ registerReceiver(receiver, new IntentFilter("com.pdfvoice.SENTENCE_CHANGED"));
             Uri uri = data.getData();
 
             try {
+
                 getContentResolver()
                         .takePersistableUriPermission(
                                 uri,
                                 Intent.FLAG_GRANT_READ_URI_PERMISSION
                         );
+
             } catch (Exception ignored) {
             }
 
-            loadPdf(uri);
+            // È un nuovo PDF: partiamo dalla prima frase
+            getSharedPreferences(
+                    "pdf_voice",
+                    MODE_PRIVATE
+            )
+                    .edit()
+                    .putInt(
+                            "current_sentence",
+                            0
+                    )
+                    .apply();
+
+            loadPdf(uri, false);
         }
     }
 
     private void loadPdf(Uri uri) {
+        loadPdf(uri, false);
+    }
+
+    private void loadPdf(
+            Uri uri,
+            boolean restorePosition) {
 
         textContainer.removeAllViews();
 
@@ -298,7 +353,11 @@ registerReceiver(receiver, new IntentFilter("com.pdfvoice.SENTENCE_CHANGED"));
                     splitIntoSentences(text);
 
             runOnUiThread(() ->
-                    displaySentences(extracted, uri)
+                    displaySentences(
+                            extracted,
+                            uri,
+                            restorePosition
+                    )
             );
 
         }).start();
@@ -337,9 +396,13 @@ registerReceiver(receiver, new IntentFilter("com.pdfvoice.SENTENCE_CHANGED"));
 
     private void displaySentences(
             ArrayList<String> extracted,
-            Uri uri) {
+            Uri uri,
+            boolean restorePosition) {
 
         textContainer.removeAllViews();
+
+        sentenceViews.clear();
+        sentences.clear();
 
         sentences.addAll(extracted);
 
@@ -391,6 +454,49 @@ registerReceiver(receiver, new IntentFilter("com.pdfvoice.SENTENCE_CHANGED"));
         }
 
         saveCurrentPdf(uri);
+
+        // Se stiamo ripristinando il PDF precedente,
+        // recuperiamo anche l'ultima frase.
+        if (restorePosition &&
+                !sentences.isEmpty()) {
+
+            SharedPreferences prefs =
+                    getSharedPreferences(
+                            "pdf_voice",
+                            MODE_PRIVATE
+                    );
+
+            int savedSentence =
+                    prefs.getInt(
+                            "current_sentence",
+                            0
+                    );
+
+            // Evita indici fuori dal documento
+            if (savedSentence < 0) {
+                savedSentence = 0;
+            }
+
+            if (savedSentence >= sentences.size()) {
+                savedSentence =
+                        sentences.size() - 1;
+            }
+
+            currentSentence = savedSentence;
+
+            final int sentenceToHighlight =
+                    savedSentence;
+
+            // Aspettiamo che le TextView siano
+            // completamente disegnate prima
+            // di evidenziare e scorrere.
+            scrollView.post(() -> {
+
+                highlightSentence(
+                        sentenceToHighlight
+                );
+            });
+        }
     }
 
     private void saveCurrentPdf(Uri uri) {
@@ -433,6 +539,7 @@ registerReceiver(receiver, new IntentFilter("com.pdfvoice.SENTENCE_CHANGED"));
         serviceIntent.setAction(
                 PlaybackService.ACTION_START
         );
+
         serviceIntent.putExtra(
                 PlaybackService.EXTRA_SENTENCE,
                 index
@@ -454,6 +561,7 @@ registerReceiver(receiver, new IntentFilter("com.pdfvoice.SENTENCE_CHANGED"));
         currentSentence = index;
 
         playPauseButton.setText("⏸");
+
         playing = true;
     }
 
@@ -555,9 +663,11 @@ registerReceiver(receiver, new IntentFilter("com.pdfvoice.SENTENCE_CHANGED"));
     protected void onDestroy() {
 
         try {
+
             unregisterReceiver(
                     sentenceReceiver
             );
+
         } catch (Exception ignored) {
         }
 

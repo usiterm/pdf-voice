@@ -60,11 +60,20 @@ public class MainActivity extends Activity {
 
         buildInterface();
 
-        android.content.IntentFilter filter =
-                new android.content.IntentFilter(
-                        "com.pdfvoice.SENTENCE_CHANGED"
-                );
+// Ripristina automaticamente l'ultimo PDF aperto
+SharedPreferences prefs = getSharedPreferences("pdf_voice", MODE_PRIVATE);
+String savedUri = prefs.getString("current_pdf_uri", null);
 
+if (savedUri != null) {
+    try {
+        Uri uri = Uri.parse(savedUri);
+        loadPdf(uri, true);
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+
+registerReceiver(receiver, new IntentFilter("com.pdfvoice.SENTENCE_CHANGED"));
         if (android.os.Build.VERSION.SDK_INT >= 33) {
             registerReceiver(
                     sentenceReceiver,

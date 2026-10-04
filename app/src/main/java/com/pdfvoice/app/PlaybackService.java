@@ -808,5 +808,7 @@ public class PlaybackService extends Service {
 
             return START_STICKY;
         }
+        @Override
+public android.os.IBinder onBind(Intent intent) {
+    return null;
     }
-}

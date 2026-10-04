@@ -7,9 +7,9 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.Layout;
+import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.MotionEvent;
-import android.view.GestureDetector;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -26,7 +26,6 @@ public class MainActivity extends Activity {
 
     private static final int PICK_PDF = 100;
 
-    // Questo valore verrà utilizzato da PlaybackService nel prossimo passo.
     private static final String EXTRA_WORD_OFFSET = "word_offset";
 
     private LinearLayout textContainer;
@@ -34,10 +33,14 @@ public class MainActivity extends Activity {
 
     private Button playPauseButton;
 
-    private final ArrayList<TextView> sentenceViews = new ArrayList<>();
-    private final ArrayList<String> sentences = new ArrayList<>();
+    private final ArrayList<TextView> sentenceViews =
+            new ArrayList<>();
+
+    private final ArrayList<String> sentences =
+            new ArrayList<>();
 
     private int currentSentence = -1;
+
     private boolean playing = false;
 
     private final android.content.BroadcastReceiver sentenceReceiver =
@@ -74,7 +77,6 @@ public class MainActivity extends Activity {
 
         buildInterface();
 
-        // Ripristina l'ultimo PDF aperto.
         SharedPreferences prefs =
                 getSharedPreferences(
                         "pdf_voice",
@@ -363,7 +365,6 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {
             }
 
-            // Nuovo PDF: ripartiamo dalla prima frase.
             getSharedPreferences(
                     "pdf_voice",
                     MODE_PRIVATE
@@ -532,6 +533,9 @@ public class MainActivity extends Activity {
             savedSentence = 0;
         }
 
+        final int restoredSentence =
+                savedSentence;
+
         for (int i = 0;
              i < sentences.size();
              i++) {
@@ -558,12 +562,6 @@ public class MainActivity extends Activity {
                     12
             );
 
-            /*
-             * Gestione del tocco:
-             *
-             * - tocco normale = inizia dalla frase
-             * - pressione prolungata = individua la parola
-             */
             GestureDetector gestureDetector =
                     new GestureDetector(
                             this,
@@ -577,4 +575,101 @@ public class MainActivity extends Activity {
                         }
 
                         @Override
-                        public
+                        public boolean onSingleTapConfirmed(
+                                MotionEvent e) {
+
+                            startServiceAtSentence(
+                                    index
+                            );
+
+                            return true;
+                        }
+
+                        @Override
+                        public void onLongPress(
+                                MotionEvent e) {
+
+                            startServiceAtWord(
+                                    sentence,
+                                    index,
+                                    e.getX(),
+                                    e.getY(),
+                                    uri
+                            );
+                        }
+                    }
+            );
+
+            sentence.setOnTouchListener(
+                    (v, event) ->
+                            gestureDetector.onTouchEvent(event)
+            );
+
+            sentenceViews.add(
+                    sentence
+            );
+
+            textContainer.addView(
+                    sentence
+            );
+        }
+
+        if (restorePosition &&
+                !sentences.isEmpty()) {
+
+            currentSentence =
+                    restoredSentence;
+
+            textContainer.post(
+                    () -> highlightSentence(
+                            restoredSentence
+                    )
+            );
+        } else if (!sentences.isEmpty()) {
+
+            currentSentence = 0;
+
+            highlightSentence(0);
+        }
+
+        saveCurrentPdf(uri);
+    }
+
+    private void startServiceAtSentence(
+            int index) {
+
+        if (index < 0 ||
+                index >= sentences.size()) {
+
+            return;
+        }
+
+        currentSentence = index;
+
+        getSharedPreferences(
+                "pdf_voice",
+                MODE_PRIVATE
+        )
+                .edit()
+                .putInt(
+                        "current_sentence",
+                        index
+                )
+                .apply();
+
+        highlightSentence(index);
+
+        Intent intent =
+                new Intent(
+                        this,
+                        PlaybackService.class
+                );
+
+        intent.setAction(
+                PlaybackService.ACTION_START
+        );
+
+        intent.putExtra(
+                PlaybackService.EXTRA_SENTENCE,
+                index
+        );

@@ -823,4 +823,96 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void
+    private void nextSentence() {
+
+    Intent intent =
+            new Intent(
+                    this,
+                    PlaybackService.class
+            );
+
+    intent.setAction(
+            PlaybackService.ACTION_NEXT
+    );
+
+    startService(intent);
+}
+
+private void previousSentence() {
+
+    Intent intent =
+            new Intent(
+                    this,
+                    PlaybackService.class
+            );
+
+    intent.setAction(
+            PlaybackService.ACTION_PREVIOUS
+    );
+
+    startService(intent);
+}
+
+private void highlightSentence(
+        int index) {
+
+    for (int i = 0;
+         i < sentenceViews.size();
+         i++) {
+
+        TextView view =
+                sentenceViews.get(i);
+
+        if (i == index) {
+
+            view.setBackgroundColor(
+                    Color.LTGRAY
+            );
+
+            view.setTextColor(
+                    Color.BLACK
+            );
+
+            view.post(() -> {
+
+                if (scrollView != null) {
+
+                    scrollView.smoothScrollTo(
+                            0,
+                            Math.max(
+                                    0,
+                                    view.getTop()
+                                            - scrollView.getHeight() / 3
+                            )
+                    );
+                }
+            });
+
+        } else {
+
+            view.setBackgroundColor(
+                    Color.TRANSPARENT
+            );
+
+            view.setTextColor(
+                    Color.DKGRAY
+            );
+        }
+    }
+}
+
+@Override
+protected void onDestroy() {
+
+    try {
+
+        unregisterReceiver(
+                sentenceReceiver
+        );
+
+    } catch (Exception ignored) {
+    }
+
+    super.onDestroy();
+}
+}

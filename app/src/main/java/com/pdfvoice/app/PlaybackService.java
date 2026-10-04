@@ -803,5 +803,23 @@ public class PlaybackService extends Service {
                     stopForeground(
                             STOP_FOREGROUND_REMOVE
                     );
+                                        break;
+            }
 
-                   
+            return START_STICKY;
+        }
+
+        @Override
+        public void onDestroy() {
+
+            try {
+                if (tts != null) {
+                    tts.stop();
+                    tts.shutdown();
+                }
+            } catch (Exception ignored) {
+            }
+
+            super.onDestroy();
+        }
+    }

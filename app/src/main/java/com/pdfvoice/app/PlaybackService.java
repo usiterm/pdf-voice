@@ -17,8 +17,6 @@ import android.media.session.MediaSession;
 import android.media.session.PlaybackState;
 import android.view.KeyEvent;
 
-import androidx.annotation.Nullable;
-
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader;
 import com.tom_roush.pdfbox.pdmodel.PDDocument;
 import com.tom_roush.pdfbox.text.PDFTextStripper;
@@ -47,7 +45,6 @@ public class PlaybackService extends Service {
     public static final String EXTRA_SENTENCE =
             "sentence";
 
-    // Posizione della parola all'interno della frase.
     public static final String EXTRA_WORD_OFFSET =
             "word_offset";
 
@@ -69,7 +66,6 @@ public class PlaybackService extends Service {
 
     private SharedPreferences prefs;
 
-    // Se >= 0, la lettura deve iniziare da questa posizione.
     private int pendingWordOffset = -1;
 
     @Override
@@ -377,12 +373,6 @@ public class PlaybackService extends Service {
             String text =
                     sentences.get(i);
 
-            /*
-             * Se abbiamo ricevuto una posizione
-             * di parola, la prima frase viene
-             * accorciata in modo da iniziare
-             * esattamente da quella posizione.
-             */
             if (i == currentSentence &&
                     pendingWordOffset >= 0) {
 
@@ -730,10 +720,6 @@ public class PlaybackService extends Service {
 
                 case ACTION_START:
 
-                    /*
-                     * Controlliamo se MainActivity
-                     * ci ha indicato una parola.
-                     */
                     if (intent.hasExtra(
                             EXTRA_WORD_OFFSET)) {
 
@@ -755,13 +741,6 @@ public class PlaybackService extends Service {
                         savePosition();
                     }
 
-                    /*
-                     * Se il PDF è già stato caricato,
-                     * possiamo partire subito.
-                     *
-                     * Altrimenti loadCurrentPdf()
-                     * lo caricherà.
-                     */
                     if (ready &&
                             !sentences.isEmpty()) {
 
@@ -777,8 +756,11 @@ public class PlaybackService extends Service {
                 case ACTION_PLAY_PAUSE:
 
                     if (playing) {
+
                         pause();
+
                     } else {
+
                         play();
                     }
 
@@ -803,15 +785,41 @@ public class PlaybackService extends Service {
                     stopForeground(
                             STOP_FOREGROUND_REMOVE
                     );
-                                                            break;
+
+                    break;
+            }
+        }
+
+        return START_STICKY;
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+    @Override
+    public void onDestroy() {
+
+        try {
+
+            if (tts != null) {
+                tts.stop();
+                tts.shutdown();
             }
 
-            return START_STICKY;
+        } catch (Exception ignored) {
         }
 
-        @Override
-        public android.os.IBinder onBind(Intent intent) {
-            return null;
+        try {
+
+            if (mediaSession != null) {
+                mediaSession.release();
+            }
+
+        } catch (Exception ignored) {
         }
+
+        super.onDestroy();
     }
 }

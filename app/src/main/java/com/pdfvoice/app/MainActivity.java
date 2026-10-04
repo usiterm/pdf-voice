@@ -6,7 +6,10 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.text.Layout;
 import android.view.Gravity;
+import android.view.MotionEvent;
+import android.view.GestureDetector;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -23,6 +26,9 @@ public class MainActivity extends Activity {
 
     private static final int PICK_PDF = 100;
 
+    // Questo valore verrà utilizzato da PlaybackService nel prossimo passo.
+    private static final String EXTRA_WORD_OFFSET = "word_offset";
+
     private LinearLayout textContainer;
     private ScrollView scrollView;
 
@@ -36,10 +42,14 @@ public class MainActivity extends Activity {
 
     private final android.content.BroadcastReceiver sentenceReceiver =
             new android.content.BroadcastReceiver() {
-        @Override
-        public void onReceive(android.content.Context context, Intent intent) {
 
-            if ("com.pdfvoice.SENTENCE_CHANGED".equals(intent.getAction())) {
+        @Override
+        public void onReceive(
+                android.content.Context context,
+                Intent intent) {
+
+            if ("com.pdfvoice.SENTENCE_CHANGED".equals(
+                    intent.getAction())) {
 
                 int index = intent.getIntExtra(
                         PlaybackService.EXTRA_SENTENCE,
@@ -58,11 +68,13 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        PDFBoxResourceLoader.init(getApplicationContext());
+        PDFBoxResourceLoader.init(
+                getApplicationContext()
+        );
 
         buildInterface();
 
-        // Ripristina automaticamente l'ultimo PDF aperto
+        // Ripristina l'ultimo PDF aperto.
         SharedPreferences prefs =
                 getSharedPreferences(
                         "pdf_voice",
@@ -76,14 +88,17 @@ public class MainActivity extends Activity {
                 );
 
         if (savedUri != null) {
+
             try {
 
                 Uri uri = Uri.parse(savedUri);
 
-                loadPdf(uri, true);
+                loadPdf(
+                        uri,
+                        true
+                );
 
-            } catch (Exception e) {
-                e.printStackTrace();
+            } catch (Exception ignored) {
             }
         }
 
@@ -111,36 +126,94 @@ public class MainActivity extends Activity {
 
     private void buildInterface() {
 
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(20, 20, 20, 10);
+        LinearLayout root =
+                new LinearLayout(this);
 
-        TextView title = new TextView(this);
-        title.setText("PDF Voice");
+        root.setOrientation(
+                LinearLayout.VERTICAL
+        );
+
+        root.setPadding(
+                20,
+                20,
+                20,
+                10
+        );
+
+        TextView title =
+                new TextView(this);
+
+        title.setText(
+                "PDF Voice"
+        );
+
         title.setTextSize(28);
-        title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, 10);
 
-        Button openButton = new Button(this);
-        openButton.setText("📄 APRI PDF");
-        openButton.setOnClickListener(v -> openPdf());
+        title.setGravity(
+                Gravity.CENTER
+        );
 
-        LinearLayout controls = new LinearLayout(this);
-        controls.setOrientation(LinearLayout.HORIZONTAL);
-        controls.setGravity(Gravity.CENTER);
+        title.setPadding(
+                0,
+                0,
+                0,
+                10
+        );
 
-        Button previousButton = new Button(this);
-        previousButton.setText("⏮");
+        Button openButton =
+                new Button(this);
 
-        playPauseButton = new Button(this);
-        playPauseButton.setText("▶");
+        openButton.setText(
+                "📄 APRI PDF"
+        );
 
-        Button nextButton = new Button(this);
-        nextButton.setText("⏭");
+        openButton.setOnClickListener(
+                v -> openPdf()
+        );
 
-        previousButton.setOnClickListener(v -> previousSentence());
-        playPauseButton.setOnClickListener(v -> playPause());
-        nextButton.setOnClickListener(v -> nextSentence());
+        LinearLayout controls =
+                new LinearLayout(this);
+
+        controls.setOrientation(
+                LinearLayout.HORIZONTAL
+        );
+
+        controls.setGravity(
+                Gravity.CENTER
+        );
+
+        Button previousButton =
+                new Button(this);
+
+        previousButton.setText(
+                "⏮"
+        );
+
+        playPauseButton =
+                new Button(this);
+
+        playPauseButton.setText(
+                "▶"
+        );
+
+        Button nextButton =
+                new Button(this);
+
+        nextButton.setText(
+                "⏭"
+        );
+
+        previousButton.setOnClickListener(
+                v -> previousSentence()
+        );
+
+        playPauseButton.setOnClickListener(
+                v -> playPause()
+        );
+
+        nextButton.setOnClickListener(
+                v -> nextSentence()
+        );
 
         controls.addView(
                 previousButton,
@@ -169,26 +242,50 @@ public class MainActivity extends Activity {
                 )
         );
 
-        scrollView = new ScrollView(this);
+        scrollView =
+                new ScrollView(this);
 
-        textContainer = new LinearLayout(this);
-        textContainer.setOrientation(LinearLayout.VERTICAL);
-        textContainer.setPadding(4, 10, 4, 40);
+        textContainer =
+                new LinearLayout(this);
 
-        TextView welcome = new TextView(this);
+        textContainer.setOrientation(
+                LinearLayout.VERTICAL
+        );
+
+        textContainer.setPadding(
+                4,
+                10,
+                4,
+                40
+        );
+
+        TextView welcome =
+                new TextView(this);
 
         welcome.setText(
                 "Apri un PDF per iniziare.\n\n" +
                 "Puoi toccare una frase per iniziare " +
-                "la lettura da quel punto."
+                "la lettura da quel punto.\n\n" +
+                "Puoi anche tenere premuta una parola " +
+                "per iniziare la lettura da lì."
         );
 
         welcome.setTextSize(18);
-        welcome.setPadding(10, 10, 10, 10);
 
-        textContainer.addView(welcome);
+        welcome.setPadding(
+                10,
+                10,
+                10,
+                10
+        );
 
-        scrollView.addView(textContainer);
+        textContainer.addView(
+                welcome
+        );
+
+        scrollView.addView(
+                textContainer
+        );
 
         root.addView(title);
 
@@ -217,9 +314,13 @@ public class MainActivity extends Activity {
     private void openPdf() {
 
         Intent intent =
-                new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                new Intent(
+                        Intent.ACTION_OPEN_DOCUMENT
+                );
 
-        intent.setType("application/pdf");
+        intent.setType(
+                "application/pdf"
+        );
 
         intent.addCategory(
                 Intent.CATEGORY_OPENABLE
@@ -248,7 +349,8 @@ public class MainActivity extends Activity {
                 data != null &&
                 data.getData() != null) {
 
-            Uri uri = data.getData();
+            Uri uri =
+                    data.getData();
 
             try {
 
@@ -261,7 +363,7 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {
             }
 
-            // È un nuovo PDF: partiamo dalla prima frase
+            // Nuovo PDF: ripartiamo dalla prima frase.
             getSharedPreferences(
                     "pdf_voice",
                     MODE_PRIVATE
@@ -273,12 +375,11 @@ public class MainActivity extends Activity {
                     )
                     .apply();
 
-            loadPdf(uri, false);
+            loadPdf(
+                    uri,
+                    false
+            );
         }
-    }
-
-    private void loadPdf(Uri uri) {
-        loadPdf(uri, false);
     }
 
     private void loadPdf(
@@ -288,11 +389,13 @@ public class MainActivity extends Activity {
         textContainer.removeAllViews();
 
         sentenceViews.clear();
+
         sentences.clear();
 
         currentSentence = -1;
 
-        TextView loading = new TextView(this);
+        TextView loading =
+                new TextView(this);
 
         loading.setText(
                 "Caricamento PDF..."
@@ -320,9 +423,10 @@ public class MainActivity extends Activity {
                 PDFTextStripper stripper =
                         new PDFTextStripper();
 
-                text = stripper.getText(
-                        document
-                );
+                text =
+                        stripper.getText(
+                                document
+                        );
 
             } catch (Exception e) {
 
@@ -337,7 +441,9 @@ public class MainActivity extends Activity {
                     TextView errorView =
                             new TextView(this);
 
-                    errorView.setText(error);
+                    errorView.setText(
+                            error
+                    );
 
                     errorView.setTextSize(18);
 
@@ -370,7 +476,10 @@ public class MainActivity extends Activity {
                 new ArrayList<>();
 
         text = text
-                .replaceAll("\\s+", " ")
+                .replaceAll(
+                        "\\s+",
+                        " "
+                )
                 .trim();
 
         if (text.isEmpty()) {
@@ -401,10 +510,27 @@ public class MainActivity extends Activity {
 
         textContainer.removeAllViews();
 
-        sentenceViews.clear();
-        sentences.clear();
+        sentences.addAll(
+                extracted
+        );
 
-        sentences.addAll(extracted);
+        SharedPreferences prefs =
+                getSharedPreferences(
+                        "pdf_voice",
+                        MODE_PRIVATE
+                );
+
+        int savedSentence =
+                prefs.getInt(
+                        "current_sentence",
+                        0
+                );
+
+        if (savedSentence < 0 ||
+                savedSentence >= sentences.size()) {
+
+            savedSentence = 0;
+        }
 
         for (int i = 0;
              i < sentences.size();
@@ -432,245 +558,23 @@ public class MainActivity extends Activity {
                     12
             );
 
-            sentence.setOnClickListener(
-                    v -> {
+            /*
+             * Gestione del tocco:
+             *
+             * - tocco normale = inizia dalla frase
+             * - pressione prolungata = individua la parola
+             */
+            GestureDetector gestureDetector =
+                    new GestureDetector(
+                            this,
+                            new GestureDetector.SimpleOnGestureListener() {
 
-                        currentSentence = index;
+                        @Override
+                        public boolean onDown(
+                                MotionEvent e) {
 
-                        startServiceAtSentence(
-                                index,
-                                uri
-                        );
-                    }
-            );
+                            return true;
+                        }
 
-            textContainer.addView(
-                    sentence
-            );
-
-            sentenceViews.add(
-                    sentence
-            );
-        }
-
-        saveCurrentPdf(uri);
-
-        // Se stiamo ripristinando il PDF precedente,
-        // recuperiamo anche l'ultima frase.
-        if (restorePosition &&
-                !sentences.isEmpty()) {
-
-            SharedPreferences prefs =
-                    getSharedPreferences(
-                            "pdf_voice",
-                            MODE_PRIVATE
-                    );
-
-            int savedSentence =
-                    prefs.getInt(
-                            "current_sentence",
-                            0
-                    );
-
-            // Evita indici fuori dal documento
-            if (savedSentence < 0) {
-                savedSentence = 0;
-            }
-
-            if (savedSentence >= sentences.size()) {
-                savedSentence =
-                        sentences.size() - 1;
-            }
-
-            currentSentence = savedSentence;
-
-            final int sentenceToHighlight =
-                    savedSentence;
-
-            // Aspettiamo che le TextView siano
-            // completamente disegnate prima
-            // di evidenziare e scorrere.
-            scrollView.post(() -> {
-
-                highlightSentence(
-                        sentenceToHighlight
-                );
-            });
-        }
-    }
-
-    private void saveCurrentPdf(Uri uri) {
-
-        getSharedPreferences(
-                "pdf_voice",
-                MODE_PRIVATE
-        )
-                .edit()
-                .putString(
-                        "current_pdf_uri",
-                        uri.toString()
-                )
-                .apply();
-    }
-
-    private void startServiceAtSentence(
-            int index,
-            Uri uri) {
-
-        saveCurrentPdf(uri);
-
-        getSharedPreferences(
-                "pdf_voice",
-                MODE_PRIVATE
-        )
-                .edit()
-                .putInt(
-                        "current_sentence",
-                        index
-                )
-                .apply();
-
-        Intent serviceIntent =
-                new Intent(
-                        this,
-                        PlaybackService.class
-                );
-
-        serviceIntent.setAction(
-                PlaybackService.ACTION_START
-        );
-
-        serviceIntent.putExtra(
-                PlaybackService.EXTRA_SENTENCE,
-                index
-        );
-
-        if (android.os.Build.VERSION.SDK_INT >= 26) {
-
-            startForegroundService(
-                    serviceIntent
-            );
-
-        } else {
-
-            startService(
-                    serviceIntent
-            );
-        }
-
-        currentSentence = index;
-
-        playPauseButton.setText("⏸");
-
-        playing = true;
-    }
-
-    private void playPause() {
-
-        Intent intent =
-                new Intent(
-                        this,
-                        PlaybackService.class
-                );
-
-        intent.setAction(
-                PlaybackService.ACTION_PLAY_PAUSE
-        );
-
-        startService(intent);
-
-        playing = !playing;
-
-        playPauseButton.setText(
-                playing ? "⏸" : "▶"
-        );
-    }
-
-    private void nextSentence() {
-
-        Intent intent =
-                new Intent(
-                        this,
-                        PlaybackService.class
-                );
-
-        intent.setAction(
-                PlaybackService.ACTION_NEXT
-        );
-
-        startService(intent);
-
-        playing = true;
-
-        playPauseButton.setText("⏸");
-    }
-
-    private void previousSentence() {
-
-        Intent intent =
-                new Intent(
-                        this,
-                        PlaybackService.class
-                );
-
-        intent.setAction(
-                PlaybackService.ACTION_PREVIOUS
-        );
-
-        startService(intent);
-
-        playing = true;
-
-        playPauseButton.setText("⏸");
-    }
-
-    private void highlightSentence(
-            int index) {
-
-        if (index < 0 ||
-                index >= sentenceViews.size()) {
-
-            return;
-        }
-
-        for (TextView view :
-                sentenceViews) {
-
-            view.setBackgroundColor(
-                    Color.TRANSPARENT
-            );
-        }
-
-        TextView active =
-                sentenceViews.get(index);
-
-        active.setBackgroundColor(
-                Color.YELLOW
-        );
-
-        scrollView.post(() ->
-                scrollView.smoothScrollTo(
-                        0,
-                        Math.max(
-                                0,
-                                active.getTop() - 200
-                        )
-                )
-        );
-    }
-
-    @Override
-    protected void onDestroy() {
-
-        try {
-
-            unregisterReceiver(
-                    sentenceReceiver
-            );
-
-        } catch (Exception ignored) {
-        }
-
-        super.onDestroy();
-    }
-}
+                        @Override
+                        public

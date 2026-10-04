@@ -7,7 +7,6 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
@@ -48,41 +47,61 @@ public class PlaybackService extends Service {
     public static final String EXTRA_SENTENCE =
             "sentence";
 
-    private static final String CHANNEL_ID = "pdf_voice_playback";
+    // Posizione della parola all'interno della frase.
+    public static final String EXTRA_WORD_OFFSET =
+            "word_offset";
+
+    private static final String CHANNEL_ID =
+            "pdf_voice_playback";
+
     private static final int NOTIFICATION_ID = 10;
 
     private TextToSpeech tts;
     private MediaSession mediaSession;
 
-    private final ArrayList<String> sentences = new ArrayList<>();
+    private final ArrayList<String> sentences =
+            new ArrayList<>();
 
     private int currentSentence = 0;
+
     private boolean ready = false;
     private boolean playing = false;
 
     private SharedPreferences prefs;
 
+    // Se >= 0, la lettura deve iniziare da questa posizione.
+    private int pendingWordOffset = -1;
+
     @Override
     public void onCreate() {
         super.onCreate();
 
-        PDFBoxResourceLoader.init(getApplicationContext());
+        PDFBoxResourceLoader.init(
+                getApplicationContext()
+        );
 
-        prefs = getSharedPreferences("pdf_voice", MODE_PRIVATE);
+        prefs = getSharedPreferences(
+                "pdf_voice",
+                MODE_PRIVATE
+        );
 
         createNotificationChannel();
+
         setupMediaSession();
+
         setupTts();
     }
 
     private void setupMediaSession() {
 
-        mediaSession = new MediaSession(
-                this,
-                "PDF Voice"
-        );
+        mediaSession =
+                new MediaSession(
+                        this,
+                        "PDF Voice"
+                );
 
-        mediaSession.setCallback(new MediaSession.Callback() {
+        mediaSession.setCallback(
+                new MediaSession.Callback() {
 
             @Override
             public void onPlay() {
@@ -105,7 +124,8 @@ public class PlaybackService extends Service {
             }
 
             @Override
-            public boolean onMediaButtonEvent(Intent mediaButtonIntent) {
+            public boolean onMediaButtonEvent(
+                    Intent mediaButtonIntent) {
 
                 KeyEvent event =
                         mediaButtonIntent.getParcelableExtra(
@@ -113,8 +133,10 @@ public class PlaybackService extends Service {
                         );
 
                 if (event != null &&
-                    event.getAction() == KeyEvent.ACTION_DOWN &&
-                    event.getKeyCode() == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+                    event.getAction() ==
+                            KeyEvent.ACTION_DOWN &&
+                    event.getKeyCode() ==
+                            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
 
                     if (playing) {
                         pause();
@@ -125,7 +147,9 @@ public class PlaybackService extends Service {
                     return true;
                 }
 
-                return super.onMediaButtonEvent(mediaButtonIntent);
+                return super.onMediaButtonEvent(
+                        mediaButtonIntent
+                );
             }
         });
 
@@ -134,15 +158,22 @@ public class PlaybackService extends Service {
 
     private void setupTts() {
 
-        tts = new TextToSpeech(this, status -> {
+        tts = new TextToSpeech(
+                this,
+                status -> {
 
-            if (status == TextToSpeech.SUCCESS) {
+            if (status ==
+                    TextToSpeech.SUCCESS) {
 
                 int result =
-                        tts.setLanguage(Locale.ITALIAN);
+                        tts.setLanguage(
+                                Locale.ITALIAN
+                        );
 
-                if (result != TextToSpeech.LANG_MISSING_DATA &&
-                    result != TextToSpeech.LANG_NOT_SUPPORTED) {
+                if (result !=
+                        TextToSpeech.LANG_MISSING_DATA &&
+                    result !=
+                        TextToSpeech.LANG_NOT_SUPPORTED) {
 
                     ready = true;
 
@@ -153,7 +184,9 @@ public class PlaybackService extends Service {
 
         tts.setAudioAttributes(
                 new AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setUsage(
+                                AudioAttributes.USAGE_MEDIA
+                        )
                         .setContentType(
                                 AudioAttributes.CONTENT_TYPE_SPEECH
                         )
@@ -163,61 +196,77 @@ public class PlaybackService extends Service {
         tts.setOnUtteranceProgressListener(
                 new UtteranceProgressListener() {
 
-                    @Override
-                    public void onStart(String id) {
+            @Override
+            public void onStart(String id) {
 
-                        try {
-                            int index = Integer.parseInt(id);
+                try {
 
-                            currentSentence = index;
+                    int index =
+                            Integer.parseInt(id);
 
-                            savePosition();
+                    currentSentence =
+                            index;
 
-                            sendSentenceUpdate(index);
+                    savePosition();
 
-                            updatePlaybackState();
-                            updateNotification();
+                    sendSentenceUpdate(index);
 
-                        } catch (Exception ignored) {
-                        }
-                    }
+                    updatePlaybackState();
 
-                    @Override
-                    public void onDone(String id) {
+                    updateNotification();
 
-                        try {
-                            int index = Integer.parseInt(id);
+                } catch (Exception ignored) {
+                }
+            }
 
-                            if (index == sentences.size() - 1) {
-                                playing = false;
-                                updatePlaybackState();
-                                updateNotification();
-                            }
+            @Override
+            public void onDone(String id) {
 
-                        } catch (Exception ignored) {
-                        }
-                    }
+                try {
 
-                    @Override
-                    public void onError(String id) {
+                    int index =
+                            Integer.parseInt(id);
+
+                    if (index ==
+                            sentences.size() - 1) {
+
                         playing = false;
+
                         updatePlaybackState();
+
                         updateNotification();
                     }
+
+                } catch (Exception ignored) {
                 }
-        );
+            }
+
+            @Override
+            public void onError(String id) {
+
+                playing = false;
+
+                updatePlaybackState();
+
+                updateNotification();
+            }
+        });
     }
 
     private void loadCurrentPdf() {
 
         String uriString =
-                prefs.getString("current_pdf_uri", null);
+                prefs.getString(
+                        "current_pdf_uri",
+                        null
+                );
 
         if (uriString == null) {
             return;
         }
 
-        Uri uri = Uri.parse(uriString);
+        Uri uri =
+                Uri.parse(uriString);
 
         new Thread(() -> {
 
@@ -227,22 +276,38 @@ public class PlaybackService extends Service {
             synchronized (sentences) {
 
                 sentences.clear();
-                sentences.addAll(extracted);
+
+                sentences.addAll(
+                        extracted
+                );
             }
 
             currentSentence =
-                    prefs.getInt("current_sentence", 0);
+                    prefs.getInt(
+                            "current_sentence",
+                            0
+                    );
+
+            if (currentSentence < 0 ||
+                    currentSentence >=
+                            sentences.size()) {
+
+                currentSentence = 0;
+            }
 
         }).start();
     }
 
-    private ArrayList<String> extractSentences(Uri uri) {
+    private ArrayList<String> extractSentences(
+            Uri uri) {
 
-        ArrayList<String> result = new ArrayList<>();
+        ArrayList<String> result =
+                new ArrayList<>();
 
         try (
                 InputStream input =
-                        getContentResolver().openInputStream(uri);
+                        getContentResolver()
+                                .openInputStream(uri);
 
                 PDDocument document =
                         PDDocument.load(input)
@@ -251,20 +316,32 @@ public class PlaybackService extends Service {
             PDFTextStripper stripper =
                     new PDFTextStripper();
 
-            String text = stripper.getText(document);
+            String text =
+                    stripper.getText(
+                            document
+                    );
 
-            text = text.replaceAll("\\s+", " ").trim();
+            text = text
+                    .replaceAll(
+                            "\\s+",
+                            " "
+                    )
+                    .trim();
 
             if (!text.isEmpty()) {
 
                 String[] parts =
-                        text.split("(?<=[.!?])\\s+");
+                        text.split(
+                                "(?<=[.!?])\\s+"
+                        );
 
-                for (String part : parts) {
+                for (String part :
+                        parts) {
 
                     part = part.trim();
 
                     if (!part.isEmpty()) {
+
                         result.add(part);
                     }
                 }
@@ -283,7 +360,9 @@ public class PlaybackService extends Service {
         }
 
         if (sentences.isEmpty()) {
+
             loadCurrentPdf();
+
             return;
         }
 
@@ -295,8 +374,37 @@ public class PlaybackService extends Service {
              i < sentences.size();
              i++) {
 
+            String text =
+                    sentences.get(i);
+
+            /*
+             * Se abbiamo ricevuto una posizione
+             * di parola, la prima frase viene
+             * accorciata in modo da iniziare
+             * esattamente da quella posizione.
+             */
+            if (i == currentSentence &&
+                    pendingWordOffset >= 0) {
+
+                int offset =
+                        pendingWordOffset;
+
+                if (offset < 0) {
+                    offset = 0;
+                }
+
+                if (offset > text.length()) {
+                    offset = text.length();
+                }
+
+                text =
+                        text.substring(offset);
+
+                pendingWordOffset = -1;
+            }
+
             tts.speak(
-                    sentences.get(i),
+                    text,
                     TextToSpeech.QUEUE_ADD,
                     null,
                     String.valueOf(i)
@@ -304,6 +412,7 @@ public class PlaybackService extends Service {
         }
 
         updatePlaybackState();
+
         updateNotification();
     }
 
@@ -316,6 +425,7 @@ public class PlaybackService extends Service {
         playing = false;
 
         updatePlaybackState();
+
         updateNotification();
     }
 
@@ -332,6 +442,8 @@ public class PlaybackService extends Service {
                         currentSentence + 1,
                         sentences.size() - 1
                 );
+
+        pendingWordOffset = -1;
 
         savePosition();
 
@@ -352,6 +464,8 @@ public class PlaybackService extends Service {
                         0
                 );
 
+        pendingWordOffset = -1;
+
         savePosition();
 
         play();
@@ -359,38 +473,78 @@ public class PlaybackService extends Service {
 
     private void playSingleSentence() {
 
-        if (!ready || sentences.isEmpty()) {
+        if (!ready ||
+                sentences.isEmpty()) {
+
             return;
         }
 
         playing = true;
 
+        String text =
+                sentences.get(
+                        currentSentence
+                );
+
+        if (pendingWordOffset >= 0) {
+
+            int offset =
+                    pendingWordOffset;
+
+            if (offset < 0) {
+                offset = 0;
+            }
+
+            if (offset > text.length()) {
+                offset = text.length();
+            }
+
+            text =
+                    text.substring(offset);
+
+            pendingWordOffset = -1;
+        }
+
         tts.speak(
-                sentences.get(currentSentence),
+                text,
                 TextToSpeech.QUEUE_FLUSH,
                 null,
-                String.valueOf(currentSentence)
+                String.valueOf(
+                        currentSentence
+                )
         );
 
         updatePlaybackState();
+
         updateNotification();
     }
 
     private void savePosition() {
 
         prefs.edit()
-                .putInt("current_sentence", currentSentence)
+                .putInt(
+                        "current_sentence",
+                        currentSentence
+                )
                 .apply();
     }
 
-    private void sendSentenceUpdate(int index) {
+    private void sendSentenceUpdate(
+            int index) {
 
         Intent intent =
-                new Intent("com.pdfvoice.SENTENCE_CHANGED");
+                new Intent(
+                        "com.pdfvoice.SENTENCE_CHANGED"
+                );
 
-        intent.setPackage(getPackageName());
+        intent.setPackage(
+                getPackageName()
+        );
 
-        intent.putExtra(EXTRA_SENTENCE, index);
+        intent.putExtra(
+                EXTRA_SENTENCE,
+                index
+        );
 
         sendBroadcast(intent);
     }
@@ -419,13 +573,18 @@ public class PlaybackService extends Service {
                         )
                         .build();
 
-        mediaSession.setPlaybackState(playbackState);
+        mediaSession.setPlaybackState(
+                playbackState
+        );
     }
 
     private void updateNotification() {
 
         Intent openIntent =
-                new Intent(this, MainActivity.class);
+                new Intent(
+                        this,
+                        MainActivity.class
+                );
 
         PendingIntent contentIntent =
                 PendingIntent.getActivity(
@@ -441,11 +600,20 @@ public class PlaybackService extends Service {
                         .setMediaSession(
                                 mediaSession.getSessionToken()
                         )
-                        .setShowActionsInCompactView(0, 1, 2);
+                        .setShowActionsInCompactView(
+                                0,
+                                1,
+                                2
+                        );
 
         Notification.Builder builder =
-                new Notification.Builder(this, CHANNEL_ID)
-                        .setContentTitle("PDF Voice")
+                new Notification.Builder(
+                        this,
+                        CHANNEL_ID
+                )
+                        .setContentTitle(
+                                "PDF Voice"
+                        )
                         .setContentText(
                                 "Frase " +
                                 (currentSentence + 1)
@@ -453,7 +621,9 @@ public class PlaybackService extends Service {
                         .setSmallIcon(
                                 android.R.drawable.ic_media_play
                         )
-                        .setContentIntent(contentIntent)
+                        .setContentIntent(
+                                contentIntent
+                        )
                         .setOngoing(playing)
                         .setStyle(style);
 
@@ -461,7 +631,9 @@ public class PlaybackService extends Service {
                 new Notification.Action.Builder(
                         android.R.drawable.ic_media_previous,
                         "Precedente",
-                        actionIntent(ACTION_PREVIOUS)
+                        actionIntent(
+                                ACTION_PREVIOUS
+                        )
                 ).build()
         );
 
@@ -470,8 +642,12 @@ public class PlaybackService extends Service {
                         playing
                                 ? android.R.drawable.ic_media_pause
                                 : android.R.drawable.ic_media_play,
-                        playing ? "Pausa" : "Riproduci",
-                        actionIntent(ACTION_PLAY_PAUSE)
+                        playing
+                                ? "Pausa"
+                                : "Riproduci",
+                        actionIntent(
+                                ACTION_PLAY_PAUSE
+                        )
                 ).build()
         );
 
@@ -479,7 +655,9 @@ public class PlaybackService extends Service {
                 new Notification.Action.Builder(
                         android.R.drawable.ic_media_next,
                         "Successiva",
-                        actionIntent(ACTION_NEXT)
+                        actionIntent(
+                                ACTION_NEXT
+                        )
                 ).build()
         );
 
@@ -489,10 +667,14 @@ public class PlaybackService extends Service {
         );
     }
 
-    private PendingIntent actionIntent(String action) {
+    private PendingIntent actionIntent(
+            String action) {
 
         Intent intent =
-                new Intent(this, PlaybackService.class);
+                new Intent(
+                        this,
+                        PlaybackService.class
+                );
 
         intent.setAction(action);
 
@@ -507,7 +689,8 @@ public class PlaybackService extends Service {
 
     private void createNotificationChannel() {
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >=
+                Build.VERSION_CODES.O) {
 
             NotificationChannel channel =
                     new NotificationChannel(
@@ -521,9 +704,13 @@ public class PlaybackService extends Service {
             );
 
             NotificationManager manager =
-                    getSystemService(NotificationManager.class);
+                    getSystemService(
+                            NotificationManager.class
+                    );
 
-            manager.createNotificationChannel(channel);
+            manager.createNotificationChannel(
+                    channel
+            );
         }
     }
 
@@ -536,59 +723,85 @@ public class PlaybackService extends Service {
         if (intent != null &&
             intent.getAction() != null) {
 
-            String action = intent.getAction();
+            String action =
+                    intent.getAction();
 
             switch (action) {
 
                 case ACTION_START:
-                    loadCurrentPdf();
+
+                    /*
+                     * Controlliamo se MainActivity
+                     * ci ha indicato una parola.
+                     */
+                    if (intent.hasExtra(
+                            EXTRA_WORD_OFFSET)) {
+
+                        currentSentence =
+                                intent.getIntExtra(
+                                        EXTRA_SENTENCE,
+                                        prefs.getInt(
+                                                "current_sentence",
+                                                0
+                                        )
+                                );
+
+                        pendingWordOffset =
+                                intent.getIntExtra(
+                                        EXTRA_WORD_OFFSET,
+                                        -1
+                                );
+
+                        savePosition();
+                    }
+
+                    /*
+                     * Se il PDF è già stato caricato,
+                     * possiamo partire subito.
+                     *
+                     * Altrimenti loadCurrentPdf()
+                     * lo caricherà.
+                     */
+                    if (ready &&
+                            !sentences.isEmpty()) {
+
+                        play();
+
+                    } else {
+
+                        loadCurrentPdf();
+                    }
+
                     break;
 
                 case ACTION_PLAY_PAUSE:
+
                     if (playing) {
                         pause();
                     } else {
                         play();
                     }
+
                     break;
 
                 case ACTION_NEXT:
+
                     nextSentence();
+
                     break;
 
                 case ACTION_PREVIOUS:
+
                     previousSentence();
+
                     break;
 
                 case ACTION_STOP:
+
                     pause();
-                    stopForeground(STOP_FOREGROUND_REMOVE);
-                    stopSelf();
-                    break;
-            }
-        }
 
-        return START_NOT_STICKY;
-    }
+                    stopForeground(
+                            STOP_FOREGROUND_REMOVE
+                    );
 
-    @Override
-    public void onDestroy() {
-
-        if (tts != null) {
-            tts.stop();
-            tts.shutdown();
-        }
-
-        if (mediaSession != null) {
-            mediaSession.setActive(false);
-            mediaSession.release();
-        }
-
-        super.onDestroy();
-    }
-
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
-    }
-}
+                   

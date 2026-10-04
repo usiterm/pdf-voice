@@ -25,12 +25,10 @@ import java.util.ArrayList;
 public class MainActivity extends Activity {
 
     private static final int PICK_PDF = 100;
-
     private static final String EXTRA_WORD_OFFSET = "word_offset";
 
     private LinearLayout textContainer;
     private ScrollView scrollView;
-
     private Button playPauseButton;
 
     private final ArrayList<TextView> sentenceViews =
@@ -40,7 +38,6 @@ public class MainActivity extends Activity {
             new ArrayList<>();
 
     private int currentSentence = -1;
-
     private boolean playing = false;
 
     private final android.content.BroadcastReceiver sentenceReceiver =
@@ -90,9 +87,7 @@ public class MainActivity extends Activity {
                 );
 
         if (savedUri != null) {
-
             try {
-
                 Uri uri = Uri.parse(savedUri);
 
                 loadPdf(
@@ -145,10 +140,7 @@ public class MainActivity extends Activity {
         TextView title =
                 new TextView(this);
 
-        title.setText(
-                "PDF Voice"
-        );
-
+        title.setText("PDF Voice");
         title.setTextSize(28);
 
         title.setGravity(
@@ -187,23 +179,17 @@ public class MainActivity extends Activity {
         Button previousButton =
                 new Button(this);
 
-        previousButton.setText(
-                "⏮"
-        );
+        previousButton.setText("⏮");
 
         playPauseButton =
                 new Button(this);
 
-        playPauseButton.setText(
-                "▶"
-        );
+        playPauseButton.setText("▶");
 
         Button nextButton =
                 new Button(this);
 
-        nextButton.setText(
-                "⏭"
-        );
+        nextButton.setText("⏭");
 
         previousButton.setOnClickListener(
                 v -> previousSentence()
@@ -281,16 +267,11 @@ public class MainActivity extends Activity {
                 10
         );
 
-        textContainer.addView(
-                welcome
-        );
+        textContainer.addView(welcome);
 
-        scrollView.addView(
-                textContainer
-        );
+        scrollView.addView(textContainer);
 
         root.addView(title);
-
         root.addView(openButton);
 
         root.addView(
@@ -388,9 +369,7 @@ public class MainActivity extends Activity {
             boolean restorePosition) {
 
         textContainer.removeAllViews();
-
         sentenceViews.clear();
-
         sentences.clear();
 
         currentSentence = -1;
@@ -404,9 +383,7 @@ public class MainActivity extends Activity {
 
         loading.setTextSize(18);
 
-        textContainer.addView(
-                loading
-        );
+        textContainer.addView(loading);
 
         new Thread(() -> {
 
@@ -425,9 +402,7 @@ public class MainActivity extends Activity {
                         new PDFTextStripper();
 
                 text =
-                        stripper.getText(
-                                document
-                        );
+                        stripper.getText(document);
 
             } catch (Exception e) {
 
@@ -442,10 +417,7 @@ public class MainActivity extends Activity {
                     TextView errorView =
                             new TextView(this);
 
-                    errorView.setText(
-                            error
-                    );
-
+                    errorView.setText(error);
                     errorView.setTextSize(18);
 
                     textContainer.addView(
@@ -511,9 +483,7 @@ public class MainActivity extends Activity {
 
         textContainer.removeAllViews();
 
-        sentences.addAll(
-                extracted
-        );
+        sentences.addAll(extracted);
 
         SharedPreferences prefs =
                 getSharedPreferences(
@@ -605,13 +575,9 @@ public class MainActivity extends Activity {
                             gestureDetector.onTouchEvent(event)
             );
 
-            sentenceViews.add(
-                    sentence
-            );
+            sentenceViews.add(sentence);
 
-            textContainer.addView(
-                    sentence
-            );
+            textContainer.addView(sentence);
         }
 
         if (restorePosition &&
@@ -625,6 +591,7 @@ public class MainActivity extends Activity {
                             restoredSentence
                     )
             );
+
         } else if (!sentences.isEmpty()) {
 
             currentSentence = 0;
@@ -673,3 +640,187 @@ public class MainActivity extends Activity {
                 PlaybackService.EXTRA_SENTENCE,
                 index
         );
+
+        startService(intent);
+
+        playing = true;
+
+        if (playPauseButton != null) {
+            playPauseButton.setText("⏸");
+        }
+    }
+
+    private void startServiceAtWord(
+            TextView sentenceView,
+            int sentenceIndex,
+            float x,
+            float y,
+            Uri uri) {
+
+        if (sentenceIndex < 0 ||
+                sentenceIndex >= sentences.size()) {
+
+            return;
+        }
+
+        Layout layout =
+                sentenceView.getLayout();
+
+        if (layout == null) {
+            return;
+        }
+
+        float layoutX =
+                x - sentenceView.getTotalPaddingLeft();
+
+        float layoutY =
+                y - sentenceView.getTotalPaddingTop();
+
+        if (layoutX < 0) {
+            layoutX = 0;
+        }
+
+        if (layoutY < 0) {
+            layoutY = 0;
+        }
+
+        int line =
+                layout.getLineForVertical(
+                        (int) layoutY
+                );
+
+        int offset =
+                layout.getOffsetForHorizontal(
+                        line,
+                        layoutX
+                );
+
+        String sentenceText =
+                sentences.get(sentenceIndex);
+
+        if (sentenceText.isEmpty()) {
+            return;
+        }
+
+        if (offset < 0) {
+            offset = 0;
+        }
+
+        if (offset >= sentenceText.length()) {
+            offset = sentenceText.length() - 1;
+        }
+
+        int wordStart = offset;
+
+        while (wordStart > 0 &&
+                !Character.isWhitespace(
+                        sentenceText.charAt(wordStart - 1)
+                )) {
+
+            wordStart--;
+        }
+
+        int wordEnd = offset;
+
+        while (wordEnd < sentenceText.length() &&
+                !Character.isWhitespace(
+                        sentenceText.charAt(wordEnd)
+                )) {
+
+            wordEnd++;
+        }
+
+        if (wordStart >= wordEnd) {
+            return;
+        }
+
+        currentSentence =
+                sentenceIndex;
+
+        getSharedPreferences(
+                "pdf_voice",
+                MODE_PRIVATE
+        )
+                .edit()
+                .putInt(
+                        "current_sentence",
+                        sentenceIndex
+                )
+                .apply();
+
+        saveCurrentPdf(uri);
+        highlightSentence(sentenceIndex);
+
+        Intent intent =
+                new Intent(
+                        this,
+                        PlaybackService.class
+                );
+
+        intent.setAction(
+                PlaybackService.ACTION_START
+        );
+
+        intent.putExtra(
+                PlaybackService.EXTRA_SENTENCE,
+                sentenceIndex
+        );
+
+        intent.putExtra(
+                EXTRA_WORD_OFFSET,
+                wordStart
+        );
+
+        startService(intent);
+
+        playing = true;
+
+        if (playPauseButton != null) {
+            playPauseButton.setText("⏸");
+        }
+    }
+
+    private void saveCurrentPdf(
+            Uri uri) {
+
+        if (uri == null) {
+            return;
+        }
+
+        getSharedPreferences(
+                "pdf_voice",
+                MODE_PRIVATE
+        )
+                .edit()
+                .putString(
+                        "current_pdf_uri",
+                        uri.toString()
+                )
+                .apply();
+    }
+
+    private void playPause() {
+
+        Intent intent =
+                new Intent(
+                        this,
+                        PlaybackService.class
+                );
+
+        intent.setAction(
+                PlaybackService.ACTION_PLAY_PAUSE
+        );
+
+        startService(intent);
+
+        playing = !playing;
+
+        if (playPauseButton != null) {
+
+            playPauseButton.setText(
+                    playing ? "⏸" : "▶"
+            );
+        }
+    }
+
+    private void

@@ -803,12 +803,15 @@ public class PlaybackService extends Service {
                     stopForeground(
                             STOP_FOREGROUND_REMOVE
                     );
-                                        break;
+                                                            break;
             }
 
             return START_STICKY;
         }
+
         @Override
-public android.os.IBinder onBind(Intent intent) {
-    return null;
+        public android.os.IBinder onBind(Intent intent) {
+            return null;
+        }
     }
+}
